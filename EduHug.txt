@@ -1,1 +1,3 @@
 https://huggingface.co/spaces/NightShadeVelisa/EduRag
+
+https://github.com/Akes102/EduRag
