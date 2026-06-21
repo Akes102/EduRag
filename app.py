@@ -3,16 +3,25 @@ from rag import EduRag
 
 rag = EduRag()
 
+def upload_pdf(file):
+    rag.load_pdf(file.name)
+    return "PDF loaded successfully"
 
-def chat(message, history):
-    return rag.answer(message)
+def ask_question(q):
+    return rag.ask(q)
 
+with gr.Blocks() as demo:
+    gr.Markdown("# EduRag - PDF AI Assistant")
 
-demo = gr.ChatInterface(
-    fn=chat,
-    title="EduRag Study Assistant",
-    description="Ask questions from your lecture PDFs. Get grounded answers with sources."
-)
+    file_input = gr.File(label="Upload PDF")
+    upload_btn = gr.Button("Load PDF")
+    status = gr.Textbox()
 
-if __name__ == "__main__":
-    demo.launch()
+    upload_btn.click(upload_pdf, inputs=file_input, outputs=status)
+
+    question = gr.Textbox(label="Ask a question")
+    answer = gr.Textbox(label="Answer")
+
+    question.submit(ask_question, inputs=question, outputs=answer)
+
+demo.launch()
