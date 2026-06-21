@@ -1,50 +1,31 @@
-import chromadb
-from sentence_transformers import SentenceTransformer
-
-from config import *
-
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 class EduRag:
     def __init__(self):
-        self.model = SentenceTransformer(EMBEDDING_MODEL)
+        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        self.vectorstore = None
 
-        self.client = chromadb.PersistentClient(path=DB_PATH)
-        self.collection = self.client.get_or_create_collection(COLLECTION_NAME)
+    def load_pdf(self, file_path):
+        loader = PyPDFLoader(file_path)
+        docs = loader.load()
 
-    def retrieve(self, query):
-        q_emb = self.model.encode(query).tolist()
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=500,
+            chunk_overlap=50
+        )
+        chunks = splitter.split_documents(docs)
 
-        results = self.collection.query(
-            query_embeddings=[q_emb],
-            n_results=TOP_K,
-            include=["documents", "metadatas"]
+        self.vectorstore = Chroma.from_documents(
+            chunks,
+            self.embeddings
         )
 
-        return results
+    def ask(self, question):
+        if not self.vectorstore:
+            return "Upload a PDF first"
 
-    def ask(self, query):
-        results = self.retrieve(query)
-
-        docs = results["documents"][0]
-        metas = results["metadatas"][0]
-
-        context = ""
-
-        for doc, meta in zip(docs, metas):
-            context += f"\nSOURCE: {meta['source']} | PAGE: {meta['page']}\n{doc}\n"
-
-        return {
-            "query": query,
-            "context": context
-        }
-
-
-if __name__ == "__main__":
-    rag = EduRag()
-
-    question = input("Ask a question: ")
-
-    result = rag.ask(question)
-
-    print("\n--- RETRIEVED CONTEXT ---\n")
-    print(result["context"])
+        docs = self.vectorstore.similarity_search(question, k=3)
+        return "\n\n".join([d.page_content for d in docs])
