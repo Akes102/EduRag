@@ -3,93 +3,25 @@ from rag import EduRag
 
 rag = EduRag()
 
-
 def upload_pdf(file):
-    if file is None:
-        return "Please upload a PDF."
-
     rag.load_pdf(file.name)
-    return "PDF loaded successfully."
+    return "PDF loaded successfully"
 
-
-def chat(message, history):
-    answer, docs = rag.ask(message)
-
-    if isinstance(docs, str):
-        history.append(
-            {"role": "user", "content": message}
-        )
-
-        history.append(
-            {"role": "assistant", "content": answer}
-        )
-
-        return history, ""
-
-    pages = sorted(
-        set(
-            doc.metadata.get("page", "Unknown")
-            for doc in docs
-        )
-    )
-
-    source_text = "\n".join(
-        [f"• Page {p}" for p in pages]
-    )
-
-    response = f"""
-{answer}
-
-Sources:
-{source_text}
-"""
-
-    history.append(
-        {"role": "user", "content": message}
-    )
-
-    history.append(
-        {"role": "assistant", "content": response}
-    )
-
-    return history, ""
-
+def ask_question(q):
+    return rag.ask(q)
 
 with gr.Blocks() as demo:
-    gr.Markdown("# EduRag AI Assistant")
+    gr.Markdown("# EduRag - AI PDF Assistant")
 
-    with gr.Row():
-        pdf_file = gr.File(
-            label="Upload PDF",
-            file_types=[".pdf"]
-        )
+    file_input = gr.File(label="Upload PDF")
+    upload_btn = gr.Button("Load PDF")
+    status = gr.Textbox()
 
-        upload_btn = gr.Button("Load PDF")
+    upload_btn.click(upload_pdf, inputs=file_input, outputs=status)
 
-    status = gr.Textbox(
-        label="Status",
-        interactive=False
-    )
+    question = gr.Textbox(label="Ask a question")
+    answer = gr.Textbox(label="Answer")
 
-    upload_btn.click(
-        upload_pdf,
-        inputs=pdf_file,
-        outputs=status
-    )
-
-    chatbot = gr.Chatbot(
-        type="messages",
-        height=500
-    )
-
-    msg = gr.Textbox(
-        label="Ask a question about the PDF"
-    )
-
-    msg.submit(
-        chat,
-        inputs=[msg, chatbot],
-        outputs=[chatbot, msg]
-    )
+    question.submit(ask_question, inputs=question, outputs=answer)
 
 demo.launch()
